@@ -119,15 +119,11 @@ pub fn open(dir: &Path) -> Result<Connection, String> {
 /// Additive migrations: add columns that older databases lack.
 fn migrate(conn: &Connection) -> Result<(), String> {
     let mut stmt = conn.prepare("PRAGMA table_info(ip_events)").map_err(|e| e.to_string())?;
-    let cols: Vec<String> = stmt
-        .query_map([], |r| r.get::<_, String>(1))
-        .map_err(|e| e.to_string())?
-        .filter_map(Result::ok)
-        .collect();
+    let cols: Vec<String> =
+        stmt.query_map([], |r| r.get::<_, String>(1)).map_err(|e| e.to_string())?.filter_map(Result::ok).collect();
     for col in ["public_ipv6", "prev_public_ipv6"] {
         if !cols.iter().any(|c| c == col) {
-            conn.execute(&format!("ALTER TABLE ip_events ADD COLUMN {col} TEXT"), [])
-                .map_err(|e| e.to_string())?;
+            conn.execute(&format!("ALTER TABLE ip_events ADD COLUMN {col} TEXT"), []).map_err(|e| e.to_string())?;
         }
     }
     Ok(())
@@ -268,18 +264,14 @@ pub fn prune(conn: &Connection, days: u32) -> Result<usize, String> {
         return Ok(0);
     }
     let cutoff = (Utc::now() - Duration::days(days as i64)).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-    conn.execute(
-        "DELETE FROM ip_events WHERE ts < ?1 AND id < (SELECT MAX(id) FROM ip_events)",
-        params![cutoff],
-    )
-    .map_err(|e| e.to_string())
+    conn.execute("DELETE FROM ip_events WHERE ts < ?1 AND id < (SELECT MAX(id) FROM ip_events)", params![cutoff])
+        .map_err(|e| e.to_string())
 }
 
 pub fn labels(conn: &Connection) -> Result<Vec<IpLabel>, String> {
     let mut stmt = conn.prepare("SELECT public_ip, label FROM ip_labels ORDER BY label").map_err(|e| e.to_string())?;
-    let rows = stmt
-        .query_map([], |r| Ok(IpLabel { public_ip: r.get(0)?, label: r.get(1)? }))
-        .map_err(|e| e.to_string())?;
+    let rows =
+        stmt.query_map([], |r| Ok(IpLabel { public_ip: r.get(0)?, label: r.get(1)? })).map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
 
@@ -400,11 +392,8 @@ pub fn stats(conn: &Connection, days: i64) -> Result<Stats, String> {
     let longest_stay = stays.first().cloned();
     let unique_ips = stays.len() as i64;
     let avg = if gaps.is_empty() { None } else { Some(gaps.iter().sum::<f64>() / gaps.len() as f64) };
-    let availability_pct = if tracked_secs > 0 {
-        ((tracked_secs - offline_secs) as f64 / tracked_secs as f64) * 100.0
-    } else {
-        100.0
-    };
+    let availability_pct =
+        if tracked_secs > 0 { ((tracked_secs - offline_secs) as f64 / tracked_secs as f64) * 100.0 } else { 100.0 };
 
     let mut isps: Vec<IspCount> = isps.into_iter().map(|(isp, count)| IspCount { isp, count }).collect();
     isps.sort_by(|a, b| b.count.cmp(&a.count));
@@ -429,7 +418,9 @@ fn parse_ts(s: &str) -> Option<DateTime<Utc>> {
 
 pub fn export_csv(conn: &Connection, path: &Path, f: &HistoryFilter) -> Result<usize, String> {
     let rows = history_all(conn, f)?;
-    let mut out = String::from("timestamp,event,public_ipv4,previous_ipv4,public_ipv6,previous_ipv6,label,isp,country,city,local_ips\n");
+    let mut out = String::from(
+        "timestamp,event,public_ipv4,previous_ipv4,public_ipv6,previous_ipv6,label,isp,country,city,local_ips\n",
+    );
     for e in &rows {
         let cells = [
             e.ts.clone(),

@@ -2,17 +2,10 @@ use serde::Deserialize;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::Duration;
 
-const V4_ENDPOINTS: &[&str] = &[
-    "https://api4.ipify.org",
-    "https://ipv4.icanhazip.com",
-    "https://ifconfig.me/ip",
-    "https://ipinfo.io/ip",
-];
+const V4_ENDPOINTS: &[&str] =
+    &["https://api4.ipify.org", "https://ipv4.icanhazip.com", "https://ifconfig.me/ip", "https://ipinfo.io/ip"];
 
-const V6_ENDPOINTS: &[&str] = &[
-    "https://api6.ipify.org",
-    "https://ipv6.icanhazip.com",
-];
+const V6_ENDPOINTS: &[&str] = &["https://api6.ipify.org", "https://ipv6.icanhazip.com"];
 
 pub fn client() -> reqwest::Client {
     reqwest::Client::builder()
@@ -71,11 +64,9 @@ pub async fn geo(client: &reqwest::Client, ip: &str) -> Geo {
     let url = format!("http://ip-api.com/json/{ip}?fields=status,isp,org,country,city");
     match client.get(url).send().await {
         Ok(resp) => match resp.json::<IpApiResponse>().await {
-            Ok(r) if r.status == "success" => Geo {
-                isp: r.isp.filter(|s| !s.is_empty()).or(r.org),
-                country: r.country,
-                city: r.city,
-            },
+            Ok(r) if r.status == "success" => {
+                Geo { isp: r.isp.filter(|s| !s.is_empty()).or(r.org), country: r.country, city: r.city }
+            }
             _ => Geo::default(),
         },
         Err(_) => Geo::default(),

@@ -11,7 +11,7 @@ pub struct Settings {
     pub start_minimized: bool,
     pub track_ipv6: bool,
     pub paused: bool,
-    pub theme: String, // "system" | "light" | "dark"
+    pub theme: String,       // "system" | "light" | "dark"
     pub retention_days: u32, // 0 = keep forever
     pub webhook_url: String,
     pub hook_command: String,
@@ -41,10 +41,7 @@ impl Settings {
     }
 
     pub fn load(dir: &Path) -> Self {
-        std::fs::read_to_string(Self::path(dir))
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+        std::fs::read_to_string(Self::path(dir)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
     }
 
     pub fn save(&self, dir: &Path) -> Result<(), String> {

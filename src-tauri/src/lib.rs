@@ -101,17 +101,43 @@ async fn run_check(app: &AppHandle) -> Result<CurrentStatus, String> {
             let prev_ip = prev.prev_public_ip.clone();
             let prev_v6 = prev.prev_public_ipv6.clone();
             let kind = if prev_ip.as_deref() == Some(ip.as_str()) { "online" } else { "change" };
-            event = Some(record(&state, kind, Some(ip.as_str()), prev_ip.as_deref(), v6.as_deref(), prev_v6.as_deref(), &locals, &g)?);
+            event = Some(record(
+                &state,
+                kind,
+                Some(ip.as_str()),
+                prev_ip.as_deref(),
+                v6.as_deref(),
+                prev_v6.as_deref(),
+                &locals,
+                &g,
+            )?);
         }
-        (Some(ip), Some(prev)) if prev.public_ip.as_deref() != Some(ip.as_str()) || (track_v6 && prev.public_ipv6.is_some() && v6.is_some() && prev.public_ipv6 != v6) => {
+        (Some(ip), Some(prev))
+            if prev.public_ip.as_deref() != Some(ip.as_str())
+                || (track_v6 && prev.public_ipv6.is_some() && v6.is_some() && prev.public_ipv6 != v6) =>
+        {
             let g = lookup(&state, geo_enabled, ip).await;
             event = Some(record(
-                &state, "change", Some(ip.as_str()), prev.public_ip.as_deref(), v6.as_deref(), prev.public_ipv6.as_deref(), &locals, &g,
+                &state,
+                "change",
+                Some(ip.as_str()),
+                prev.public_ip.as_deref(),
+                v6.as_deref(),
+                prev.public_ipv6.as_deref(),
+                &locals,
+                &g,
             )?);
         }
         (None, Some(prev)) if prev.kind != "offline" => {
             event = Some(record(
-                &state, "offline", None, prev.public_ip.as_deref(), None, prev.public_ipv6.as_deref(), &locals, &ip::Geo::default(),
+                &state,
+                "offline",
+                None,
+                prev.public_ip.as_deref(),
+                None,
+                prev.public_ipv6.as_deref(),
+                &locals,
+                &ip::Geo::default(),
             )?);
         }
         _ => {}
@@ -174,7 +200,11 @@ async fn run_check(app: &AppHandle) -> Result<CurrentStatus, String> {
 }
 
 async fn lookup(state: &State<'_, AppState>, enabled: bool, ip: &str) -> ip::Geo {
-    if enabled { ip::geo(&state.client, ip).await } else { ip::Geo::default() }
+    if enabled {
+        ip::geo(&state.client, ip).await
+    } else {
+        ip::Geo::default()
+    }
 }
 
 fn next_check_time(state: &State<AppState>) -> Option<String> {
@@ -451,10 +481,16 @@ async fn test_webhook(state: State<'_, AppState>, url: String) -> Result<String,
         city: None,
         label: None,
     };
-    let resp = state.client.post(&url).json(&serde_json::json!({
-        "event": e.kind, "timestamp": e.ts, "public_ipv4": e.public_ip, "previous_ipv4": e.prev_public_ip,
-        "isp": e.isp, "country": e.country, "local_ips": e.local_ips, "test": true
-    })).send().await.map_err(|e| e.to_string())?;
+    let resp = state
+        .client
+        .post(&url)
+        .json(&serde_json::json!({
+            "event": e.kind, "timestamp": e.ts, "public_ipv4": e.public_ip, "previous_ipv4": e.prev_public_ip,
+            "isp": e.isp, "country": e.country, "local_ips": e.local_ips, "test": true
+        }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(format!("HTTP {}", resp.status().as_u16()))
 }
 
