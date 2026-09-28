@@ -35,7 +35,10 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Workflow manually triggered — forcing release v$VERSION."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          elif git rev-parse "v$VERSION" >/dev/null 2>&1; then
             echo "Tag v$VERSION already exists — nothing to release."
             echo "release=false" >> "$GITHUB_OUTPUT"
           else
