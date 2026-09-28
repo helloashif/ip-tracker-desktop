@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from "vue";
 import { enable, disable } from "@tauri-apps/plugin-autostart";
-import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+import { openPath } from "@tauri-apps/plugin-opener";
 import PageHeader from "./ui/PageHeader.vue";
 import { api, type Settings, type AppInfo } from "../lib/api";
 import { setTheme } from "../lib/theme";
