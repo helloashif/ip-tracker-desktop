@@ -1,15 +1,51 @@
+# Automatic releases.
+#
+# Every push to `main` reads the version from package.json. If no tag `v<version>`
+# exists yet, this workflow builds installers for Linux, Windows and macOS
+# (Intel + Apple Silicon), creates the tag, and publishes a GitHub Release with
+# the installers attached. Pushes that don't change the version do nothing.
+#
+# To ship a release:   npm version patch   (or minor / major)   && git push --follow-tags
+# (npm version bumps package.json; tauri.conf.json reads its version from there.)
+
 name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  version:
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - id: v
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists — nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Will release v$VERSION."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: version
+    if: needs.version.outputs.release == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -51,9 +87,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "IP Tracker ${{ github.ref_name }}"
-          releaseBody: "See the assets below to download and install this version."
-          releaseDraft: true
+          tagName: v${{ needs.version.outputs.version }}
+          releaseName: "IP Tracker v${{ needs.version.outputs.version }}"
+          releaseBody: |
+            Download the installer for your platform below.
+
+            - **Windows:** `.msi` or `-setup.exe`
+            - **macOS:** `_aarch64.dmg` (Apple Silicon) or `_x64.dmg` (Intel) — not notarized yet; right-click → Open on first launch
+            - **Linux:** `.AppImage` or `.deb`
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

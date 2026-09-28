@@ -75,7 +75,7 @@ Prerequisites: [Node 22+](https://nodejs.org), [Rust stable](https://rustup.rs),
 
 ```bash
 git clone https://github.com/helloashif/ip-tracker-desktop
-cd ip-tracker
+cd ip-tracker-desktop
 npm install
 npm run tauri dev      # run with hot reload
 npm run tauri build    # produce installers in src-tauri/target/release/bundle
@@ -106,15 +106,18 @@ Data lives in the OS app-data directory (`~/.local/share/dev.ashif.iptracker` on
 
 ## Releasing
 
-Tag a commit and push it. GitHub Actions builds all platforms and attaches installers to a draft release.
+Releases are automatic. Bump the version and push to `main`:
 
 ```bash
-git tag v0.1.0 && git push --tags
+npm version patch      # or minor / major — updates package.json (tauri.conf.json reads it)
+git push --follow-tags
 ```
+
+The Release workflow sees a version with no matching `v*` tag, builds installers for Linux, Windows and macOS (Intel and Apple Silicon), creates the tag and publishes the GitHub Release with everything attached. Pushes that don't change the version are skipped. You can also trigger it manually from the Actions tab.
 
 ## Contributing
 
-Issues and pull requests are welcome. Run `npm run build` and `cargo clippy` in `src-tauri` before opening a PR.
+Issues and pull requests are welcome. Before opening a PR run `npm run build`, and in `src-tauri` run `cargo fmt` and `cargo clippy -- -D warnings`.
 
 ## License
 
