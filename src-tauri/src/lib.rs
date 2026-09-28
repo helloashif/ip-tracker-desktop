@@ -14,7 +14,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_notification::NotificationExt;
 use tokio::sync::Notify;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct CurrentStatus {
     pub public_ip: Option<String>,
     pub public_ipv6: Option<String>,
@@ -29,26 +29,6 @@ pub struct CurrentStatus {
     pub last_checked: Option<String>,
     pub next_check: Option<String>,
     pub since: Option<String>,
-}
-
-impl Default for CurrentStatus {
-    fn default() -> Self {
-        Self {
-            public_ip: None,
-            public_ipv6: None,
-            local_ips: Vec::new(),
-            isp: None,
-            country: None,
-            city: None,
-            label: None,
-            online: false,
-            checking: false,
-            paused: false,
-            last_checked: None,
-            next_check: None,
-            since: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -388,7 +388,7 @@ pub fn stats(conn: &Connection, days: i64) -> Result<Stats, String> {
     }
 
     let mut stays: Vec<IpStay> = stays.into_values().collect();
-    stays.sort_by(|a, b| b.seconds.cmp(&a.seconds));
+    stays.sort_by_key(|a| std::cmp::Reverse(a.seconds));
     let longest_stay = stays.first().cloned();
     let unique_ips = stays.len() as i64;
     let avg = if gaps.is_empty() { None } else { Some(gaps.iter().sum::<f64>() / gaps.len() as f64) };
@@ -396,7 +396,7 @@ pub fn stats(conn: &Connection, days: i64) -> Result<Stats, String> {
         if tracked_secs > 0 { ((tracked_secs - offline_secs) as f64 / tracked_secs as f64) * 100.0 } else { 100.0 };
 
     let mut isps: Vec<IspCount> = isps.into_iter().map(|(isp, count)| IspCount { isp, count }).collect();
-    isps.sort_by(|a, b| b.count.cmp(&a.count));
+    isps.sort_by_key(|a| std::cmp::Reverse(a.count));
 
     Ok(Stats {
         days,
