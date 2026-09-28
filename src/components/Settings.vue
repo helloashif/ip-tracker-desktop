@@ -187,8 +187,7 @@ const retentions = [
     <section class="card p-5">
       <h2 class="font-medium mb-2">About</h2>
       <p class="text-fg2 text-[13px]">
-        IP Tracker {{ info?.version }} · open source under the MIT license.
-        <button class="text-accent hover:underline" @click="openUrl('https://github.com/YOUR_USER/ip-tracker')">Source and issues</button>
+        IP Tracker {{ info?.version }} · 
       </p>
     </section>
   </div>
