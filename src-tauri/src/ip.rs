@@ -123,9 +123,8 @@ pub async fn geo(client: &reqwest::Client, ip: &str) -> Geo {
         if let Ok(r) = resp.json::<IpApiResponse>().await {
             if r.status == "success" {
                 let as_org = r.as_field.as_deref().and_then(clean_as_name);
-                let isp = as_org
-                    .or_else(|| r.org.filter(|s| !s.is_empty()))
-                    .or_else(|| r.isp.filter(|s| !s.is_empty()));
+                let isp =
+                    as_org.or_else(|| r.org.filter(|s| !s.is_empty())).or_else(|| r.isp.filter(|s| !s.is_empty()));
 
                 return Geo {
                     isp,
