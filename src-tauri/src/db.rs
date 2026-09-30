@@ -258,6 +258,21 @@ pub fn delete_event(conn: &Connection, id: i64) -> Result<(), String> {
     Ok(())
 }
 
+pub fn update_geo_for_ip(
+    conn: &Connection,
+    ip: &str,
+    isp: Option<&str>,
+    country: Option<&str>,
+    city: Option<&str>,
+) -> Result<(), String> {
+    conn.execute(
+        "UPDATE ip_events SET isp = ?1, country = ?2, city = ?3 WHERE public_ip = ?4",
+        params![isp, country, city, ip],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Remove events older than `days`, but never the most recent one (it holds current state).
 pub fn prune(conn: &Connection, days: u32) -> Result<usize, String> {
     if days == 0 {

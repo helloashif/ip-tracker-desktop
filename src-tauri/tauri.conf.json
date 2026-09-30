@@ -36,11 +36,6 @@
       "icons/icon.ico"
     ],
     "category": "Utility",
-    "shortDescription": "Track your public IP address over time.",
-    "linux": {
-      "deb": {
-        "depends": []
-      }
-    }
+    "shortDescription": "Track your public IP address over time."
   }
 }

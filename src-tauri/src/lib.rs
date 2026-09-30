@@ -52,7 +52,7 @@ pub struct AppState {
 
 // ---------- Core check ----------
 
-async fn run_check(app: &AppHandle) -> Result<CurrentStatus, String> {
+async fn run_check(app: &AppHandle, force_geo: bool) -> Result<CurrentStatus, String> {
     let state = app.state::<AppState>();
     let _guard = state.check_lock.lock().await; // never two checks at once
 
@@ -121,6 +121,19 @@ async fn run_check(app: &AppHandle) -> Result<CurrentStatus, String> {
             )?);
         }
         _ => {}
+    }
+
+    if event.is_none() && geo_enabled {
+        if let Some(ref ip) = v4 {
+            let needs_geo_update = force_geo || last.as_ref().map_or(true, |l| l.isp.is_none() || l.isp.as_deref() == Some("Md Mithu Howlader"));
+            if needs_geo_update {
+                let g = lookup(&state, true, ip).await;
+                if g.isp.is_some() || g.country.is_some() || g.city.is_some() {
+                    let db = state.db.lock().unwrap();
+                    let _ = db::update_geo_for_ip(&db, ip, g.isp.as_deref(), g.country.as_deref(), g.city.as_deref());
+                }
+            }
+        }
     }
 
     if retention > 0 {
@@ -253,7 +266,7 @@ async fn poll_loop(app: AppHandle) {
     loop {
         let paused = app.state::<AppState>().settings.lock().unwrap().paused;
         if !paused {
-            let _ = run_check(&app).await;
+            let _ = run_check(&app, false).await;
         }
         let secs = app.state::<AppState>().settings.lock().unwrap().interval_secs();
         let state = app.state::<AppState>();
@@ -374,7 +387,7 @@ fn get_current(state: State<AppState>) -> CurrentStatus {
 
 #[tauri::command]
 async fn check_now(app: AppHandle) -> Result<CurrentStatus, String> {
-    let s = run_check(&app).await?;
+    let s = run_check(&app, true).await?;
     app.state::<AppState>().wake.notify_one(); // restart the interval from now
     Ok(s)
 }
@@ -507,11 +520,26 @@ fn get_app_info(app: AppHandle, state: State<AppState>) -> Result<AppInfo, Strin
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    {
+        // Fix WebKitGTK white screen & fullscreen rendering freezes on Linux (Wayland / Mesa / NVIDIA)
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::all()
+                        - tauri_plugin_window_state::StateFlags::VISIBLE,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,

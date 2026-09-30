@@ -46,6 +46,26 @@ pub struct Geo {
     pub city: Option<String>,
 }
 
+#[derive(Deserialize, Default)]
+struct IpWhoIsConnection {
+    #[serde(default)]
+    isp: Option<String>,
+    #[serde(default)]
+    org: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct IpWhoIsResponse {
+    #[serde(default)]
+    success: bool,
+    #[serde(default)]
+    country: Option<String>,
+    #[serde(default)]
+    city: Option<String>,
+    #[serde(default)]
+    connection: Option<IpWhoIsConnection>,
+}
+
 #[derive(Deserialize)]
 struct IpApiResponse {
     status: String,
@@ -54,23 +74,69 @@ struct IpApiResponse {
     #[serde(default)]
     org: Option<String>,
     #[serde(default)]
+    #[serde(rename = "as")]
+    as_field: Option<String>,
+    #[serde(default)]
     country: Option<String>,
     #[serde(default)]
     city: Option<String>,
 }
 
-/// Best-effort ISP / location lookup via ip-api.com (free, 45 req/min).
-pub async fn geo(client: &reqwest::Client, ip: &str) -> Geo {
-    let url = format!("http://ip-api.com/json/{ip}?fields=status,isp,org,country,city");
-    match client.get(url).send().await {
-        Ok(resp) => match resp.json::<IpApiResponse>().await {
-            Ok(r) if r.status == "success" => {
-                Geo { isp: r.isp.filter(|s| !s.is_empty()).or(r.org), country: r.country, city: r.city }
-            }
-            _ => Geo::default(),
-        },
-        Err(_) => Geo::default(),
+fn clean_as_name(as_str: &str) -> Option<String> {
+    let trimmed = as_str.trim();
+    if let Some(rest) = trimmed.strip_prefix("AS") {
+        let after_num = rest.trim_start_matches(|c: char| c.is_ascii_digit()).trim();
+        if !after_num.is_empty() {
+            return Some(after_num.to_string());
+        }
     }
+    if !trimmed.is_empty() {
+        Some(trimmed.to_string())
+    } else {
+        None
+    }
+}
+
+/// Best-effort ISP / location lookup.
+/// Primary: ipwho.is (HTTPS, accurate ASN & ISP mapping, free).
+/// Fallback: ip-api.com (includes AS organization fallback when APNIC descriptor lists an individual).
+pub async fn geo(client: &reqwest::Client, ip: &str) -> Geo {
+    // 1. Try ipwho.is (accurate ISP and organization mapping)
+    let whois_url = format!("https://ipwho.is/{ip}");
+    if let Ok(resp) = client.get(&whois_url).send().await {
+        if let Ok(r) = resp.json::<IpWhoIsResponse>().await {
+            if r.success {
+                let conn = r.connection.unwrap_or_default();
+                let isp = conn.isp.filter(|s| !s.is_empty()).or(conn.org.filter(|s| !s.is_empty()));
+                return Geo {
+                    isp,
+                    country: r.country.filter(|s| !s.is_empty()),
+                    city: r.city.filter(|s| !s.is_empty()),
+                };
+            }
+        }
+    }
+
+    // 2. Fallback to ip-api.com (with AS organization cleanup)
+    let api_url = format!("http://ip-api.com/json/{ip}?fields=status,isp,org,as,country,city");
+    if let Ok(resp) = client.get(&api_url).send().await {
+        if let Ok(r) = resp.json::<IpApiResponse>().await {
+            if r.status == "success" {
+                let as_org = r.as_field.as_deref().and_then(clean_as_name);
+                let isp = as_org
+                    .or_else(|| r.org.filter(|s| !s.is_empty()))
+                    .or_else(|| r.isp.filter(|s| !s.is_empty()));
+
+                return Geo {
+                    isp,
+                    country: r.country.filter(|s| !s.is_empty()),
+                    city: r.city.filter(|s| !s.is_empty()),
+                };
+            }
+        }
+    }
+
+    Geo::default()
 }
 
 /// Non-loopback local addresses, IPv4 first, then global IPv6.
