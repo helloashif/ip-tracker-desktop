@@ -125,8 +125,7 @@ async fn run_check(app: &AppHandle, force_geo: bool) -> Result<CurrentStatus, St
 
     if event.is_none() && geo_enabled {
         if let Some(ref ip) = v4 {
-            let needs_geo_update = force_geo
-                || last.as_ref().is_none_or(|l| l.isp.is_none() || l.isp.as_deref() == Some("Md Mithu Howlader"));
+            let needs_geo_update = force_geo || last.as_ref().is_none_or(|l| l.isp.is_none());
             if needs_geo_update {
                 let g = lookup(&state, true, ip).await;
                 if g.isp.is_some() || g.country.is_some() || g.city.is_some() {
