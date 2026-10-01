@@ -59,7 +59,9 @@ jobs:
             args: ""
           - platform: macos-latest
             args: "--target aarch64-apple-darwin"
-          - platform: macos-13
+          # Intel build is cross-compiled on the Apple Silicon runner
+          # (the macos-13 Intel runner image has been retired).
+          - platform: macos-latest
             args: "--target x86_64-apple-darwin"
     runs-on: ${{ matrix.platform }}
     steps:
@@ -77,6 +79,8 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          # Both macOS jobs share a platform, so key the cache per target.
+          key: ${{ matrix.args }}
 
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
